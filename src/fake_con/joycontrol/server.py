@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 BT_SECURITY = 4
 BT_SECURITY_LOW = 1
 
+
 async def _send_empty_input_reports(transport):
     report = InputReport()
     for i in range(10):
@@ -32,6 +33,7 @@ async def create_hid_server(
     itr_psm=19,
     device_id=None,
     reconnect_bt_addr=None,
+    reconnect_timeout=10,
     capture_file=None,
     interactive=False,
 ):
@@ -68,7 +70,9 @@ async def create_hid_server(
                 print("try modifieing /lib/systemd/system/bluetooth.service and see")
                 print("https://github.com/Poohl/joycontrol/issues/4 if it doesn't work")
             for sw in hid.get_paired_switches():
-                logger.warning(f"Found paired switch {sw} at {hid.get_address_of_paired_path(sw)}")
+                logger.warning(
+                    f"Found paired switch {sw} at {hid.get_address_of_paired_path(sw)}"
+                )
                 print(
                     f"Warning: a switch ({sw}) was found paired, do you want to unpair it?"
                 )
@@ -92,13 +96,16 @@ async def create_hid_server(
         itr_sock = socket.socket(
             socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, socket.BTPROTO_L2CAP
         )
-        ctl_sock.setsockopt(socket.SOL_BLUETOOTH, BT_SECURITY, struct.pack("BB", BT_SECURITY_LOW, 0))
-        itr_sock.setsockopt(socket.SOL_BLUETOOTH, BT_SECURITY, struct.pack("BB", BT_SECURITY_LOW, 0))
+        ctl_sock.setsockopt(
+            socket.SOL_BLUETOOTH, BT_SECURITY, struct.pack("BB", BT_SECURITY_LOW, 0)
+        )
+        itr_sock.setsockopt(
+            socket.SOL_BLUETOOTH, BT_SECURITY, struct.pack("BB", BT_SECURITY_LOW, 0)
+        )
         ctl_sock.setblocking(False)
         itr_sock.setblocking(False)
         ctl_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         itr_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
 
         try:
             ctl_sock.bind((bt_addr, ctl_psm))
@@ -196,10 +203,27 @@ async def create_hid_server(
         client_itr = socket.socket(
             socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, socket.BTPROTO_L2CAP
         )
-        client_ctl.connect((reconnect_bt_addr, ctl_psm))
-        client_itr.connect((reconnect_bt_addr, itr_psm))
         client_ctl.setblocking(False)
         client_itr.setblocking(False)
+        loop = asyncio.get_running_loop()
+        try:
+            await asyncio.wait_for(
+                loop.sock_connect(client_ctl, (reconnect_bt_addr, ctl_psm)),
+                timeout=reconnect_timeout,
+            )
+            await asyncio.wait_for(
+                loop.sock_connect(client_itr, (reconnect_bt_addr, itr_psm)),
+                timeout=reconnect_timeout,
+            )
+        except BaseException as error:
+            client_ctl.close()
+            client_itr.close()
+            if isinstance(error, OSError):
+                raise ConnectionError(
+                    f"Could not reconnect to {reconnect_bt_addr} "
+                    f"on HID PSM {ctl_psm}/{itr_psm}: {error}"
+                ) from error
+            raise
 
     # I have spent 8 hours, one stackoverflow question and read pythons socket sourcecode
     # to find tis fucking option somewhere in a GNUC API description. (here: https://www.gnu.org/software/libc/manual/html_node/Socket_002dLevel-Options.html)

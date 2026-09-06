@@ -36,6 +36,7 @@ class FakeCon:
         spi_flash: FlashMemory | bytes | None = None,
         ctl_psm=17,
         itr_psm=19,
+        reconnect_timeout=10,
         capture_file=None,
         interactive=False,
         auto_pairing=False,
@@ -55,6 +56,7 @@ class FakeCon:
             "reconnect_bt_addr": reconnect_bt_addr,
             "ctl_psm": ctl_psm,
             "itr_psm": itr_psm,
+            "reconnect_timeout": reconnect_timeout,
             "capture_file": capture_file,
             "interactive": interactive,
         }
@@ -91,7 +93,7 @@ class FakeCon:
                         **self._server_options,
                     )
                     break
-                except (SystemExit, ConnectionError) as error:
+                except (SystemExit, ConnectionError, TimeoutError) as error:
                     if self._server_options["reconnect_bt_addr"] != "auto":
                         raise
                     logger.warning(
@@ -153,8 +155,20 @@ class FakeCon:
         """Set one button state and send an input report."""
         await button_update(self.state, button, pressed)
 
-    async def set_stick(self, side, *, h, v):
-        """Set a stick's raw horizontal and vertical values."""
+    async def set_stick(self, side, *, x, y):
+        """Set a stick using normalized x/y values in the range [-1.0, 1.0]."""
+        for value in (x, y):
+            if not -1.0 <= value <= 1.0:
+                raise ValueError("Stick x and y values must be in [-1.0, 1.0]")
+
+        await self.set_stick_raw(
+            side,
+            h=round((x + 1.0) * 2047.5),
+            v=round((y + 1.0) * 2047.5),
+        )
+
+    async def set_stick_raw(self, side, *, h, v):
+        """Set a stick using raw horizontal and vertical values in [0, 4095]."""
         if side.lower() in ("l", "left"):
             stick = "l_stick_analog"
         elif side.lower() in ("r", "right"):

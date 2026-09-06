@@ -2,9 +2,9 @@ import asyncio
 
 
 class _Request:
-    def __init__(self, value, loop):
+    def __init__(self, value):
         self.value = value
-        self.future = loop.create_future()
+        self.future = asyncio.get_running_loop().create_future()
 
 
 class MySemaphore(asyncio.Semaphore):
@@ -12,14 +12,19 @@ class MySemaphore(asyncio.Semaphore):
     An implementation of the asyncio-Semaphore with a few more features.
     Most this code is copied from the original CPython implementation.
     """
+
     def __init__(self, value):
         super().__init__(value)
         self._value = value
-        self._waiters = [] # Normal people would use an actual Queue. The standard queues are shit
+        self._waiters = (
+            []
+        )  # Normal people would use an actual Queue. The standard queues are shit
         self._aquired = 0
 
     def _check_next(self):
-        while self._waiters and (self._waiters[0].future.done() or self._value >= self._waiters[0].value):
+        while self._waiters and (
+            self._waiters[0].future.done() or self._value >= self._waiters[0].value
+        ):
             r = self._waiters.pop(0)
             if not r.future.done():
                 r.future.set_result(None)
@@ -29,7 +34,7 @@ class MySemaphore(asyncio.Semaphore):
         if count < 0:
             raise ValueError("Semaphore acquire with count < 0")
         while self._value < count:
-            r = _Request(count, self._loop)
+            r = _Request(count)
             self._waiters.append(r)
             try:
                 await r.future
@@ -63,11 +68,13 @@ class MySemaphore(asyncio.Semaphore):
         self._aquired -= count
         self._check_next()
 
+
 class MyBoundedSemaphore(MySemaphore):
     """
     Äquivalent to asyncio.BoundedSemaphore,
     also with more features
     """
+
     def __init__(self, limit=1, value=None):
         super().__init__(value if not value is None else limit)
         self._limit = limit
@@ -84,5 +91,5 @@ class MyBoundedSemaphore(MySemaphore):
             if best_effort:
                 count = self._limit - self._value
             else:
-                raise ValueError('BoundedSemaphore released too many times')
+                raise ValueError("BoundedSemaphore released too many times")
         super().release(count)

@@ -43,6 +43,17 @@ doc = ["sphinx", "sphinx_rtd_theme"]
 test = ["tap.py"]
 
 [[package]]
+name = "evdev"
+version = "2.0.0"
+description = "Bindings to the Linux input handling subsystem"
+optional = false
+python-versions = ">=3.11"
+groups = ["main"]
+files = [
+    {file = "evdev-2.0.0.tar.gz", hash = "sha256:442fb3f4c8dfc9e61e901133c356220c02d663eca8f34722e0cecdd637eba504"},
+]
+
+[[package]]
 name = "hid"
 version = "1.0.9"
 description = "ctypes bindings for hidapi"
@@ -222,4 +233,4 @@ type = ["importlib_metadata (>=7.0.2) ; python_version < \"3.10\"", "jaraco.deve
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13, <4.0"
-content-hash = "4ac092b72530d1f2f9f2a30cbe38d4c3387df829f11482bcaea388cee4e09ff4"
+content-hash = "765593203165ff52bed65c88cd9862e642f57fbbb9926eb42fc97e641ef3c1e9"

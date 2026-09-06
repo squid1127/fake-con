@@ -1,11 +1,12 @@
 """Test script implementing fake-con
 
-This script takes control, opens the joystick testing menu, and moves the left stick around for testing"""
+This script takes control, opens the joystick testing menu, and moves the left stick around for testing
+"""
 
 import asyncio
-from logging import getLogger
 import logging
-from typing import Sequence
+from collections.abc import Sequence
+from logging import getLogger
 
 from fake_con import Controller, connect
 
@@ -38,45 +39,47 @@ async def main():
     try:
         logger.info("Connected to Switch, doing stuff..")
 
-        await do_inputs([
-            "a",
-            0.2,
-            "home",
-            0.5,
-            ["down"] * 2,
-            ["left"] * 2,
-            "a",
-            0.25,
-            ["down"] * 10,
-            "a",
-            ["down"] * 10,
-            "a",
-            0.25,
-        ])
-        
+        await do_inputs(
+            [
+                "a",
+                0.2,
+                "home",
+                0.5,
+                ["down"] * 2,
+                ["left"] * 2,
+                "a",
+                0.25,
+                ["down"] * 10,
+                "a",
+                ["down"] * 10,
+                "a",
+                0.25,
+            ]
+        )
+
         logger.info("Left stick -> (0, 0)")
-        await controller.set_stick("left", h=0, v=0)
+        await controller.set_stick_raw("left", h=0, v=0)
         await asyncio.sleep(4)
         logger.info("Left stick -> (2048, 2,048)")
-        await controller.set_stick("left", h=2048, v=2048)
+        await controller.set_stick_raw("left", h=2048, v=2048)
         await asyncio.sleep(2)
         logger.info("Left stick -> (0, 0)")
-        await controller.set_stick("left", h=0, v=0)
+        await controller.set_stick_raw("left", h=0, v=0)
         await asyncio.sleep(2)
         logger.info("Left stick -> (4095, 4095)")
-        await controller.set_stick("left", h=4095, v=4095)
+        await controller.set_stick_raw("left", h=4095, v=4095)
         await asyncio.sleep(2)
         logger.info("Left stick -> (0, 0)")
-        await controller.set_stick("left", h=0, v=0)
+        await controller.set_stick_raw("left", h=0, v=0)
         await asyncio.sleep(2)
         logger.info("Left stick -> (2048, 2,048)")
-        await controller.set_stick("left", h=2048, v=2048)
+        await controller.set_stick_raw("left", h=2048, v=2048)
         await asyncio.sleep(2)
-        
+
         logger.info("Left stick -> Full range test (0, 0) -> (4095, 4095)")
         for i in range(4095):
             logger.info(f"Left stick -> ({i}, {i})")
-            await controller.set_stick("left", h=i, v=i)
+            await controller.set_stick_raw("left", h=i, v=i)
             await asyncio.sleep(0.01)
 
         logger.info("Done!")
