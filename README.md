@@ -7,6 +7,11 @@ A "fork" of [joycontrol](https://github.com/Poohl/joycontrol) since the original
 - Made into a poetry project
 - Restructured the thing a bit
 - Fixed a lot of weird bugs I kept running into (WHY IS IT LIKE THIS WHO MADE THIS (no offense i was kidding you're really awesome twin))
+- Added a keyboard remapper for fun
+- Used a lot of AI :(
+- Changed like every file of the original code
+
+After spending a whole afternoon dealing with this code base, I would suggest NOT using it, could really use a rewrite
 
 ## Async API
 
