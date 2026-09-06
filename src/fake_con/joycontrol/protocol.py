@@ -16,34 +16,41 @@ from .transport import NotConnectedError
 logger = logging.getLogger(__name__)
 
 
-def controller_protocol_factory(controller: Controller, spi_flash=None, reconnect = False):
+def controller_protocol_factory(
+    controller: Controller, spi_flash=None, reconnect=False
+):
     if isinstance(spi_flash, bytes):
         spi_flash = FlashMemory(spi_flash_memory_data=spi_flash)
 
     def create_controller_protocol():
-        return ControllerProtocol(controller, spi_flash=spi_flash, reconnect = reconnect)
+        return ControllerProtocol(controller, spi_flash=spi_flash, reconnect=reconnect)
 
     return create_controller_protocol
 
+
 class SwitchState(enum.Enum):
-    STANDARD = enum.auto,
-    GRIP_MENU = enum.auto,
+    STANDARD = (enum.auto,)
+    GRIP_MENU = (enum.auto,)
     AWAITING_MAX_SLOTS = enum.auto
 
+
 close_pairing_menu_map = {
-    Controller.JOYCON_R: ['x', 'a', 'home'],
-    Controller.JOYCON_L: ['down', 'left'],
-    Controller.PRO_CONTROLLER: ['a', 'b', 'home']
+    Controller.JOYCON_R: ["x", "a", "home"],
+    Controller.JOYCON_L: ["down", "left"],
+    Controller.PRO_CONTROLLER: ["a", "b", "home"],
 }
 
 close_pairing_masks = {
     Controller.JOYCON_R: int.from_bytes(bytes([0x2 | 0x8, 0x10, 0]), "big"),
     Controller.JOYCON_L: int.from_bytes(bytes([0, 0, 0x1 | 0x8]), "big"),
-    Controller.PRO_CONTROLLER: int.from_bytes(bytes([0x4 | 0x8, 0x10, 0]), "big")
+    Controller.PRO_CONTROLLER: int.from_bytes(bytes([0x4 | 0x8, 0x10, 0]), "big"),
 }
 
+
 class ControllerProtocol(BaseProtocol):
-    def __init__(self, controller: Controller, spi_flash: FlashMemory = None, reconnect = False):
+    def __init__(
+        self, controller: Controller, spi_flash: FlashMemory = None, reconnect=False
+    ):
         self.controller = controller
         self.spi_flash = spi_flash
         self.transport = None
@@ -61,12 +68,12 @@ class ControllerProtocol(BaseProtocol):
 
         # input mode
         self.delay_map = {
-            None: math.inf, # subcommands only
+            None: math.inf,  # subcommands only
             0x3F: 1.0,
-            0x21: math.inf, # shouldn't happen
-            0x30: 1/60, # this needs revising, but 120 seems too fast
-        #    0x30: 1/120 if self.controller == Controller.PRO_CONTROLLER else 1/60,
-            0x31: 1/60
+            0x21: math.inf,  # shouldn't happen
+            0x30: 1 / 60,  # this needs revising, but 120 seems too fast
+            #    0x30: 1/120 if self.controller == Controller.PRO_CONTROLLER else 1/60,
+            0x31: 1 / 60,
         }
         self._input_report_wakeup = asyncio.Event()
         self._set_mode(None)
@@ -78,7 +85,7 @@ class ControllerProtocol(BaseProtocol):
         self.sig_input_ready = asyncio.Event()
         self.sig_data_received = asyncio.Event()
 
-# INTERNAL
+    # INTERNAL
 
     def _set_mode(self, mode, delay=None):
 
@@ -89,12 +96,12 @@ class ControllerProtocol(BaseProtocol):
         if delay:
             self.send_delay = self.delay_map[mode]
         elif self._is_pairing:
-            self.send_delay = 1/15
+            self.send_delay = 1 / 15
         elif mode in self.delay_map:
             self.send_delay = self.delay_map[mode]
         else:
             logger.warning(f"Unknown delay for mode {mode}, assuming 1/15")
-            self.send_delay = 1/15
+            self.send_delay = 1 / 15
 
         if mode in [0x30, 0x31, 0x32, 0x33]:
             # sig input ready, writer
@@ -109,11 +116,14 @@ class ControllerProtocol(BaseProtocol):
         Raises NotConnected exception if the transport is not connected or the connection was lost.
         """
         if self.transport is None:
-            raise NotConnectedError('Transport not registered.')
+            raise NotConnectedError("Transport not registered.")
 
-        if self._is_pairing and (int.from_bytes(input_report.data[4:7], "big") & close_pairing_masks[self.controller]):
+        if self._is_pairing and (
+            int.from_bytes(input_report.data[4:7], "big")
+            & close_pairing_masks[self.controller]
+        ):
             # this is a bit too early, but so far no
-            logger.info('left change Grip/Order menu')
+            logger.info("left change Grip/Order menu")
             self._is_pairing = False
             self._set_mode(self._input_report_mode)
 
@@ -134,19 +144,25 @@ class ControllerProtocol(BaseProtocol):
 
         input_report.set_input_report_id(mode)
         if mode == 0x3F:
-            input_report.data[1:3] = [0x28, 0xca, 0x08]
-            input_report.data[4:11] = [0x40,0x8A, 0x4F, 0x8A, 0xD0, 0x7E, 0xDF, 0x7F]
+            input_report.data[1:3] = [0x28, 0xCA, 0x08]
+            input_report.data[4:11] = [0x40, 0x8A, 0x4F, 0x8A, 0xD0, 0x7E, 0xDF, 0x7F]
         else:
             if self._input_report_timer_start:
-                input_report.set_timer(round((time.time() - self._input_report_timer_start) / 0.005) % 0x100)
+                input_report.set_timer(
+                    round((time.time() - self._input_report_timer_start) / 0.005)
+                    % 0x100
+                )
             else:
                 input_report.set_timer(0)
             input_report.set_misc()
             input_report.set_button_status(self._controller_state.button_state)
-            input_report.set_stick_status(self._controller_state.l_stick_state, self._controller_state.r_stick_state)
+            input_report.set_stick_status(
+                self._controller_state.l_stick_state,
+                self._controller_state.r_stick_state,
+            )
             input_report.set_vibrator_input()
             if mode == 0x21:
-                pass # subcommand is set outside
+                pass  # subcommand is set outside
             elif mode in [0x30, 0x31, 0x32, 0x33]:
                 input_report.set_6axis_data()
 
@@ -170,15 +186,17 @@ class ControllerProtocol(BaseProtocol):
             except:
                 break
             # calculate delay
-            self.send_delay = debug.get_delay(self.send_delay) #debug hook
+            self.send_delay = debug.get_delay(self.send_delay)  # debug hook
             active_time = time.time() - last_send_time
             sleep_time = self.send_delay - active_time
             if sleep_time < 0:
-                logger.warning(f'Code is running {abs(sleep_time)} s too slow!')
+                logger.warning(f"Code is running {abs(sleep_time)} s too slow!")
                 sleep_time = 0
 
             try:
-                await asyncio.wait_for(self._input_report_wakeup.wait(), timeout=sleep_time)
+                await asyncio.wait_for(
+                    self._input_report_wakeup.wait(), timeout=sleep_time
+                )
                 self._input_report_wakeup.clear()
             except TimeoutError:
                 pass
@@ -194,9 +212,9 @@ class ControllerProtocol(BaseProtocol):
             return False
 
         if sub_command is None:
-            raise ValueError('Received output report does not contain a sub command')
+            raise ValueError("Received output report does not contain a sub command")
 
-        logging.info(f'received Sub command {sub_command}')
+        logging.info(f"received Sub command {sub_command}")
 
         sub_command_data = report.get_sub_command_data()
         assert sub_command_data is not None
@@ -206,57 +224,77 @@ class ControllerProtocol(BaseProtocol):
         try:
             # answer to sub command
             if sub_command == SubCommand.REQUEST_DEVICE_INFO:
-                await self._command_request_device_info(response_report, sub_command_data)
+                await self._command_request_device_info(
+                    response_report, sub_command_data
+                )
 
             elif sub_command == SubCommand.SET_SHIPMENT_STATE:
-                await self._command_set_shipment_state(response_report, sub_command_data)
+                await self._command_set_shipment_state(
+                    response_report, sub_command_data
+                )
 
             elif sub_command == SubCommand.SPI_FLASH_READ:
                 await self._command_spi_flash_read(response_report, sub_command_data)
 
             elif sub_command == SubCommand.SET_INPUT_REPORT_MODE:
-                await self._command_set_input_report_mode(response_report, sub_command_data)
+                await self._command_set_input_report_mode(
+                    response_report, sub_command_data
+                )
 
             elif sub_command == SubCommand.TRIGGER_BUTTONS_ELAPSED_TIME:
-                await self._command_trigger_buttons_elapsed_time(response_report, sub_command_data)
+                await self._command_trigger_buttons_elapsed_time(
+                    response_report, sub_command_data
+                )
 
             elif sub_command == SubCommand.ENABLE_6AXIS_SENSOR:
-                await self._command_enable_6axis_sensor(response_report, sub_command_data)
+                await self._command_enable_6axis_sensor(
+                    response_report, sub_command_data
+                )
 
             elif sub_command == SubCommand.ENABLE_VIBRATION:
                 await self._command_enable_vibration(response_report, sub_command_data)
 
             elif sub_command == SubCommand.SET_NFC_IR_MCU_CONFIG:
-                await self._command_set_nfc_ir_mcu_config(response_report, sub_command_data)
+                await self._command_set_nfc_ir_mcu_config(
+                    response_report, sub_command_data
+                )
 
             elif sub_command == SubCommand.SET_NFC_IR_MCU_STATE:
-                await self._command_set_nfc_ir_mcu_state(response_report, sub_command_data)
+                await self._command_set_nfc_ir_mcu_state(
+                    response_report, sub_command_data
+                )
 
             elif sub_command == SubCommand.SET_PLAYER_LIGHTS:
                 await self._command_set_player_lights(response_report, sub_command_data)
             else:
-                logger.warning(f'Sub command 0x{sub_command.value:02x} not implemented - ignoring')
+                logger.warning(
+                    f"Sub command 0x{sub_command.value:02x} not implemented - ignoring"
+                )
                 return False
 
             await self._write(response_report)
 
         except NotImplementedError as err:
-            logger.error(f'Failed to answer {sub_command} - {err}')
+            logger.error(f"Failed to answer {sub_command} - {err}")
             return False
         return True
 
-# transport hooks
+    # transport hooks
 
     def connection_made(self, transport: BaseTransport) -> None:
-        logger.debug('Connection established.')
+        logger.debug("Connection established.")
         self.transport = transport
         self._input_report_timer_start = time.time()
 
     def connection_lost(self, exc: Exception | None = None) -> None:
         if self.transport is not None:
-            logger.error('Connection lost.')
+            logger.error("Connection lost.")
             asyncio.ensure_future(self.transport.close())
             self.transport = None
+
+            if self._writer_thread is not None:
+                self._writer_thread.cancel()
+                self._writer_thread = None
 
             if self._controller_state_sender is not None:
                 self._controller_state_sender.set_exception(NotConnectedError)
@@ -288,10 +326,11 @@ class ControllerProtocol(BaseProtocol):
         elif output_report_id == OutputReportID.REQUEST_IR_NFC_MCU:
             self._mcu.received_11(report.data[11], report.get_sub_command_data())
         else:
-            logger.warning(f'Output report {output_report_id} not implemented - ignoring')
+            logger.warning(
+                f"Output report {output_report_id} not implemented - ignoring"
+            )
 
-
-# event lisnter hooks
+    # event lisnter hooks
 
     async def send_controller_state(self):
         """
@@ -302,7 +341,7 @@ class ControllerProtocol(BaseProtocol):
         # TODO: Call write directly if in continuously sending input report mode
 
         if self.transport is None:
-            raise NotConnectedError('Transport not registered.')
+            raise NotConnectedError("Transport not registered.")
 
         if not self._not_paused.is_set():
             await self._write(self._generate_input_report())
@@ -310,7 +349,9 @@ class ControllerProtocol(BaseProtocol):
             self._controller_state.sig_is_send.clear()
 
             # wrap into a future to be able to set an exception in case of a disconnect
-            self._controller_state_sender = asyncio.ensure_future(self._controller_state.sig_is_send.wait())
+            self._controller_state_sender = asyncio.ensure_future(
+                self._controller_state.sig_is_send.wait()
+            )
             await self._controller_state_sender
             self._controller_state_sender = None
 
@@ -332,13 +373,13 @@ class ControllerProtocol(BaseProtocol):
     def get_controller_state(self) -> ControllerState:
         return self._controller_state
 
-# subcommands
+    # subcommands
 
     async def _command_request_device_info(self, input_report, sub_command_data):
 
-        address = self.transport.get_extra_info('sockname')
+        address = self.transport.get_extra_info("sockname")
         assert address is not None
-        bd_address = [int(x, 16) for x in address[0].split(':')]
+        bd_address = [int(x, 16) for x in address[0].split(":")]
 
         input_report.set_ack(0x82)
         input_report.sub_0x02_device_info(bd_address, controller=self.controller)
@@ -367,7 +408,7 @@ class ControllerProtocol(BaseProtocol):
         size = sub_command_data[4]
 
         if self.spi_flash is not None:
-            spi_flash_data = self.spi_flash[offset: offset + size]
+            spi_flash_data = self.spi_flash[offset : offset + size]
             input_report.sub_0x10_spi_flash_read(offset, size, spi_flash_data)
         else:
             spi_flash_data = size * [0x00]
@@ -377,7 +418,9 @@ class ControllerProtocol(BaseProtocol):
 
     async def _command_set_input_report_mode(self, input_report, sub_command_data):
         if self._input_report_mode == sub_command_data[0]:
-            logger.warning(f'Already in input report mode {sub_command_data[0]} - ignoring request')
+            logger.warning(
+                f"Already in input report mode {sub_command_data[0]} - ignoring request"
+            )
 
         self._set_mode(sub_command_data[0])
 
@@ -388,7 +431,9 @@ class ControllerProtocol(BaseProtocol):
 
         return input_report
 
-    async def _command_trigger_buttons_elapsed_time(self, input_report, sub_command_data):
+    async def _command_trigger_buttons_elapsed_time(
+        self, input_report, sub_command_data
+    ):
         input_report.set_ack(0x83)
         input_report.reply_to_subcommand_id(SubCommand.TRIGGER_BUTTONS_ELAPSED_TIME)
         # Hack: We assume this command is only used during pairing - Set values so the Switch assigns a player number
@@ -420,7 +465,42 @@ class ControllerProtocol(BaseProtocol):
         input_report.set_ack(0xA0)
         input_report.reply_to_subcommand_id(SubCommand.SET_NFC_IR_MCU_CONFIG.value)
 
-        data = [1, 0, 255, 0, 8, 0, 27, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 200]
+        data = [
+            1,
+            0,
+            255,
+            0,
+            8,
+            0,
+            27,
+            1,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            200,
+        ]
         for i in range(len(data)):
             input_report.data[16 + i] = data[i]
 
@@ -438,14 +518,19 @@ class ControllerProtocol(BaseProtocol):
             input_report.set_ack(0x80)
             input_report.reply_to_subcommand_id(SubCommand.SET_NFC_IR_MCU_STATE.value)
         else:
-            raise NotImplementedError(f'Argument {sub_command_data[0]} of {SubCommand.SET_NFC_IR_MCU_STATE} '
-                                      f'not implemented.')
+            raise NotImplementedError(
+                f"Argument {sub_command_data[0]} of {SubCommand.SET_NFC_IR_MCU_STATE} "
+                f"not implemented."
+            )
         return input_report
 
     async def _command_set_player_lights(self, input_report, sub_command_data):
         input_report.set_ack(0x80)
         input_report.reply_to_subcommand_id(SubCommand.SET_PLAYER_LIGHTS.value)
 
-        self._writer_thread = utils.start_asyncio_thread(self._writer())
+        if self._writer_thread is None or self._writer_thread.done():
+            self._writer_thread = utils.start_asyncio_thread(
+                self._writer(), ignore=asyncio.CancelledError
+            )
         self.sig_input_ready.set()
         return input_report

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import socket
+import struct
 import sys
 from importlib.resources import files
 
@@ -14,6 +15,9 @@ from .transport import L2CAP_Transport
 PROFILE_PATH = str(files(__package__) / "profile" / "sdp_record_hid.xml")
 logger = logging.getLogger(__name__)
 
+
+BT_SECURITY = 4
+BT_SECURITY_LOW = 1
 
 async def _send_empty_input_reports(transport):
     report = InputReport()
@@ -88,10 +92,13 @@ async def create_hid_server(
         itr_sock = socket.socket(
             socket.AF_BLUETOOTH, socket.SOCK_SEQPACKET, socket.BTPROTO_L2CAP
         )
+        ctl_sock.setsockopt(socket.SOL_BLUETOOTH, BT_SECURITY, struct.pack("BB", BT_SECURITY_LOW, 0))
+        itr_sock.setsockopt(socket.SOL_BLUETOOTH, BT_SECURITY, struct.pack("BB", BT_SECURITY_LOW, 0))
         ctl_sock.setblocking(False)
         itr_sock.setblocking(False)
         ctl_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         itr_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
 
         try:
             ctl_sock.bind((bt_addr, ctl_psm))
