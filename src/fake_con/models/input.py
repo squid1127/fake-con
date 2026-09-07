@@ -5,7 +5,32 @@ from enum import Enum
 
 
 class Button(Enum):
-    """Enum for buttons on the controller."""
+    """Enum for buttons on the controller.
+    
+    Attributes:
+        Y: Y button
+        X: X button
+        B: B button
+        A: A button
+        SR: SR button (Right Joy-Con)
+        SL: SL button (Right Joy-Con)
+        R: R button
+        ZR: ZR button
+        MINUS: Minus button
+        PLUS: Plus button
+        R_STICK: Right stick button
+        L_STICK: Left stick button
+        HOME: Home button
+        CAPTURE: Capture button
+        DOWN: D-pad down
+        UP: D-pad up
+        RIGHT: D-pad right
+        LEFT: D-pad left
+        LSR: Left Joy-Con SL button
+        LSL: Left Joy-Con SR button
+        L: L button
+        ZL: ZL button
+    """
 
     Y = (0, 0)
     X = (0, 1)
@@ -34,7 +59,14 @@ class Button(Enum):
 
 
 class StickAxis(Enum):
-    """Enum for axes on the analog sticks."""
+    """Enum for axes on the analog sticks.
+    
+    Attributes:
+        LEFT_X: Left stick X-axis
+        LEFT_Y: Left stick Y-axis
+        RIGHT_X: Right stick X-axis
+        RIGHT_Y: Right stick Y-axis
+    """
 
     LEFT_X = (0, 0)
     LEFT_Y = (0, 1)
@@ -43,6 +75,13 @@ class StickAxis(Enum):
 
 
 class ControllerType(Enum):
+    """Enum for types of controllers.
+    
+    Attributes:
+        JOYCON_L: Left Joy-Con
+        JOYCON_R: Right Joy-Con
+        PRO_CONTROLLER: Nintendo Switch Pro Controller
+    """
     JOYCON_L = 0x01
     JOYCON_R = 0x02
     PRO_CONTROLLER = 0x03
@@ -59,7 +98,15 @@ class ControllerType(Enum):
 
 
 class InputReportType(Enum):
-    """Enum for input report types."""
+    """Enum for input report types.
+    
+    Attributes:
+        STANDARD_FULL: Standard full input report (60 Hz)
+        STANDARD_FULL_NFC: Standard full input report with NFC (60 Hz)
+        SIMPLE_HID: Simple HID input report (1 Hz)
+        REPLY_ONLY: Reply-only input report
+        NO_INPUT_REPORT: No input report
+    """
 
     STANDARD_FULL = 0x30
     STANDARD_FULL_NFC = 0x31
