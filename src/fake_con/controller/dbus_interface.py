@@ -6,7 +6,7 @@ from logging import getLogger
 from uuid import uuid4
 
 from aiofiles import open as aio_open
-from dbus import Bus, Interface, SystemBus
+from dbus import Boolean, Bus, Interface, String, SystemBus
 from dbus.connection import ProxyObject
 
 from ..models.config import FakeConConfig
@@ -158,7 +158,7 @@ class DBusInterface:
         Args:
             powered: True to power on the adapter, False to power it off.
         """
-        await run_sync(self.properties.Set, DBUS_INTERFACE_ADAPTER, "Powered", powered)
+        await run_sync(self.properties.Set, DBUS_INTERFACE_ADAPTER, "Powered", Boolean(powered))
         logger.info(f"Set adapter power state to {powered}")
 
     async def set_discoverable(self, discoverable: bool):
@@ -168,7 +168,7 @@ class DBusInterface:
             discoverable: True to make the adapter discoverable, False to make it non-discoverable.
         """
         await run_sync(
-            self.properties.Set, DBUS_INTERFACE_ADAPTER, "Discoverable", discoverable
+            self.properties.Set, DBUS_INTERFACE_ADAPTER, "Discoverable", Boolean(discoverable)
         )
         logger.info(f"Set adapter discoverable state to {discoverable}")
 
@@ -178,7 +178,7 @@ class DBusInterface:
         Args:
             alias: The new alias for the adapter.
         """
-        await run_sync(self.properties.Set, DBUS_INTERFACE_ADAPTER, "Alias", alias)
+        await run_sync(self.properties.Set, DBUS_INTERFACE_ADAPTER, "Alias", String(alias))
         logger.info(f"Set adapter alias to {alias}")
 
     async def set_pairable(self, pairable: bool):
@@ -188,7 +188,7 @@ class DBusInterface:
             pairable: True to make the adapter pairable, False to make it non-pairable.
         """
         await run_sync(
-            self.properties.Set, DBUS_INTERFACE_ADAPTER, "Pairable", pairable
+            self.properties.Set, DBUS_INTERFACE_ADAPTER, "Pairable", Boolean(pairable)
         )
         logger.info(f"Set adapter pairable state to {pairable}")
 

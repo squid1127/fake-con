@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from .enums import ControllerType
+from .input import ControllerType
 
 
 class FakeConConfig(BaseModel):

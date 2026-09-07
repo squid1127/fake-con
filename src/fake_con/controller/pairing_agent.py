@@ -3,8 +3,8 @@
 import threading
 
 import dbus
-from dbus.mainloop.glib import DBusGMainLoop
 import dbus.service
+from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib
 
 from ..models.constants import AGENT_CAPABILITY, AGENT_PATH, DBUS_INTERFACE_AGENT

@@ -25,3 +25,7 @@ DBUS_INTERFACE_ADAPTER = "org.bluez.Adapter1"
 DBUS_INTERFACE_DEVICE = "org.bluez.Device1"
 DBUS_INTERFACE_AGENT = "org.bluez.Agent1"
 DBUS_INTERFACE_PROFILE_MANAGER = "org.bluez.ProfileManager1"
+
+# Tickrate constants
+TICKRATE_TOLERANCE = 0.05
+TICKRATE_WARNING_DURATION = 1.0

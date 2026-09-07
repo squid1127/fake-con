@@ -13,6 +13,8 @@ from ..models.constants import (
 )
 from .dbus_interface import DBusInterface
 from .pairing_agent import PairingAgent
+from .state import ControllerState
+from .transceiver import ControllerTransceiver
 from .utils import run_command
 
 logger = getLogger(__name__)
@@ -48,7 +50,9 @@ class FakeConServer:
         if self._pairing_agent is not None:
             self._pairing_agent.close()
             self._pairing_agent = None
-            
+
+        await self.attach_transceiver()
+
     async def stop(self):
         """Stop the server controller."""
         logger.info("Stopping the fake-con server...")
@@ -93,7 +97,7 @@ class FakeConServer:
         if not self._config.set_device_class:
             logger.info("Skipping device class setting as per configuration.")
             return
-        
+
         command = [
             "hciconfig",
             self._dbus_interface.adapter_name,
@@ -120,11 +124,35 @@ class FakeConServer:
             self._accept_socket(self.control_socket),
             self._accept_socket(self.interrupt_socket),
         )
+        self.control_socket.close()
+        self.interrupt_socket.close()
+        self._control_socket = client_control
+        self._interrupt_socket = client_interrupt
+        self._control_socket.setblocking(False)
+        self._interrupt_socket.setblocking(False)
+        self._control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
+        self._interrupt_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
+        
         logger.info("Switch paired successfully.")
         await self._dbus_interface.stop_advertising()
 
-        client_control.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
-        client_interrupt.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
+
+    async def attach_transceiver(self):
+        """Attach a controller transceiver to the paired switch."""
+        if self._control_socket is None or self._interrupt_socket is None:
+            raise RuntimeError(
+                "Sockets are not initialized. Call create_sockets() first."
+            )
+
+        logger.info("Attaching controller transceiver...")
+        transceiver = ControllerTransceiver(
+            controller_state=ControllerState(
+                controller_type=self._config.controller_type,
+            ),
+            control_socket=self._control_socket,
+            interrupt_socket=self._interrupt_socket,
+        )
+        await transceiver.start()
 
     async def _accept_socket(self, sock: socket.socket) -> socket.socket:
         """Accept a connection on the given socket."""
@@ -132,12 +160,12 @@ class FakeConServer:
         conn, addr = await loop.sock_accept(sock)
         logger.info("Accepted connection from %s", addr)
         return conn
-    
+
     async def __aenter__(self):
         """Enter the async context manager."""
         await self.start()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_value, traceback):
         """Exit the async context manager."""
         await self.stop()
