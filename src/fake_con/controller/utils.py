@@ -21,3 +21,12 @@ async def run_command(command: list[str]) -> str:
     if process.returncode != 0:
         raise RuntimeError(f"Command {command} failed with error: {stderr.decode()}")
     return stdout.decode().strip()
+
+def pretty_bytes(data: bytes| bytearray) -> str:
+    """Return a pretty string representation of bytes."""
+    digits = [f"{i:02}" for i in range(len(data))]
+    hex_values = [f"{b:02X}" for b in data]
+    content = "|".join(hex_values)
+    content += "\n" + "-" * len("|".join(digits))
+    content += "\n" + "|".join(digits)
+    return content

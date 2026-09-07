@@ -27,8 +27,8 @@ class Button(Enum):
     UP = (2, 1)
     RIGHT = (2, 2)
     LEFT = (2, 3)
-    LSR = (2, 4) # Left Joy-Con SL button
-    LSL = (2, 5) # Left Joy-Con SR button
+    LSR = (2, 4)  # Left Joy-Con SL button
+    LSL = (2, 5)  # Left Joy-Con SR button
     L = (2, 6)
     ZL = (2, 7)
 
@@ -51,6 +51,11 @@ class ControllerType(Enum):
     def device_name(self):
         """Get the name of the controller type."""
         return CONTROLLER_NAMES[self]
+    
+    @property
+    def raw_value(self):
+        """Get the raw value of the controller type."""
+        return CONTROLLER_RAW_VALUES[self]
 
 
 class InputReportType(Enum):
@@ -63,12 +68,36 @@ class InputReportType(Enum):
     NO_INPUT_REPORT = None
 
 
+class OutputReportType(Enum):
+    """Enum for output report types."""
+
+    SUBCOMMAND = 0x01
+
+
+class OutputSubcommand(Enum):
+    """Enum for subcommands sent to the controller."""
+
+    GET_CONTROLLER_STATE = 0x00
+    GET_DEVICE_INFO = 0x02
+    SET_INPUT_REPORT_MODE = 0x03
+    GET_TRIGGER_TIMES = 0x04
+    SET_SHIPMENT_STATE = 0x08
+    GET_SPI_FLASH = 0x10
+    ENABLE_IMU = 0x40
+
+
 # * Mappings
 
 CONTROLLER_NAMES = {
     ControllerType.JOYCON_L: "Joy-Con (L)",
     ControllerType.JOYCON_R: "Joy-Con (R)",
     ControllerType.PRO_CONTROLLER: "Pro Controller",
+}
+
+CONTROLLER_RAW_VALUES = {
+    ControllerType.JOYCON_L: 0x01,
+    ControllerType.JOYCON_R: 0x02,
+    ControllerType.PRO_CONTROLLER: 0x03,
 }
 
 INPUT_REPORT_RATE: Mapping[InputReportType, float | None] = {

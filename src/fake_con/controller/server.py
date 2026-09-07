@@ -11,6 +11,7 @@ from ..models.constants import (
     BT_SECURITY_LOW,
     DEVICE_CLASS_LEGACY,
 )
+from .api import ControllerAPI
 from .dbus_interface import DBusInterface
 from .pairing_agent import PairingAgent
 from .state import ControllerState
@@ -21,7 +22,11 @@ logger = getLogger(__name__)
 
 
 class FakeConServer:
-    """Server controller for the fake-con system."""
+    """Server controller for the fake-con system.
+    
+    This class manages the Bluetooth connection, pairing, and controller state.
+    
+    Also functions as an async context manager, allowing for easy startup and shutdown of the server."""
 
     def __init__(self, config: FakeConConfig):
         """Initialize the server controller with the given configuration.
@@ -38,6 +43,7 @@ class FakeConServer:
 
         self._control_socket: socket.socket | None = None  # Control socket
         self._interrupt_socket: socket.socket | None = None  # Interrupt socket
+        self._transceiver: ControllerTransceiver | None = None  # Controller transceiver
 
     async def start(self):
         """Start the server controller."""
@@ -56,6 +62,9 @@ class FakeConServer:
     async def stop(self):
         """Stop the server controller."""
         logger.info("Stopping the fake-con server...")
+        if self._transceiver is not None:
+            await self._transceiver.stop()
+            self._transceiver = None
         if self._control_socket is not None:
             self._control_socket.close()
             self._control_socket = None
@@ -132,10 +141,9 @@ class FakeConServer:
         self._interrupt_socket.setblocking(False)
         self._control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
         self._interrupt_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
-        
+
         logger.info("Switch paired successfully.")
         await self._dbus_interface.stop_advertising()
-
 
     async def attach_transceiver(self):
         """Attach a controller transceiver to the paired switch."""
@@ -151,7 +159,9 @@ class FakeConServer:
             ),
             control_socket=self._control_socket,
             interrupt_socket=self._interrupt_socket,
+            address=await self._dbus_interface.get_address(),
         )
+        self._transceiver = transceiver
         await transceiver.start()
 
     async def _accept_socket(self, sock: socket.socket) -> socket.socket:
@@ -183,3 +193,10 @@ class FakeConServer:
         if self._interrupt_socket is None:
             raise RuntimeError("Interrupt socket is not initialized.")
         return self._interrupt_socket
+
+    @property
+    def controller(self) -> ControllerAPI:
+        """Get the controller API."""
+        if self._transceiver is None:
+            raise RuntimeError("Controller transceiver is not initialized.")
+        return ControllerAPI(transceiver=self._transceiver)
