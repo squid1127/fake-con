@@ -1,0 +1,12 @@
+{
+    "cSpell.words": [
+        "bluez",
+        "btmgmt",
+        "DBUS",
+        "JOYCON",
+        "pairable",
+        "REUSEADDR",
+        "SEQPACKET"
+    ],
+    "python.analysis.typeCheckingMode": "standard"
+}
