@@ -67,7 +67,7 @@ Restart systemd and the bluetooth service:
 sudo systemctl daemon-reload && sudo systemctl restart bluetooth
 ```
 
-AFTER, you can restore the original configuration by running:
+To go back, you can restore the original configuration by running:
 
 ```bash
 sudo systemctl revert bluetooth && sudo systemctl daemon-reload && sudo systemctl restart bluetooth
