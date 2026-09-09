@@ -3,8 +3,11 @@
         "bluez",
         "btmgmt",
         "DBUS",
+        "ecodes",
+        "evdev",
         "JOYCON",
         "pairable",
+        "remapper",
         "REUSEADDR",
         "SEQPACKET"
     ],

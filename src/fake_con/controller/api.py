@@ -14,7 +14,7 @@ class ControllerAPI:
             transceiver: The ControllerTransceiver instance
         """
         self._transceiver = transceiver
-        
+
     def set_button(self, button: Button, pressed: bool):
         """(Sync) Set the state of a button.
 
@@ -23,7 +23,7 @@ class ControllerAPI:
             pressed: True if the button is pressed, False otherwise
         """
         self._transceiver.controller_state.set_button(button, pressed)
-        
+
     async def tap(self, button: Button, duration_ticks: int = 1):
         """(Async) Tap a button (press and release) for a specified duration in ticks.
 
@@ -34,7 +34,7 @@ class ControllerAPI:
         self.set_button(button, True)
         await self.wait(duration_ticks)
         self.set_button(button, False)
-        
+
     async def wait(self, ticks: int = 1):
         """(Async) Wait for a specified number of ticks.
 
@@ -43,7 +43,7 @@ class ControllerAPI:
         """
         for _ in range(ticks):
             await self._transceiver.wait_for_tick()
-    
+
     def set_left_stick(self, x: float, y: float):
         """(Sync) Set the state of the left stick.
 
@@ -53,6 +53,7 @@ class ControllerAPI:
         """
         self.set_stick_axis(StickAxis.LEFT_X, x)
         self.set_stick_axis(StickAxis.LEFT_Y, y)
+
     def set_right_stick(self, x: float, y: float):
         """(Sync) Set the state of the right stick.
 
@@ -62,7 +63,7 @@ class ControllerAPI:
         """
         self.set_stick_axis(StickAxis.RIGHT_X, x)
         self.set_stick_axis(StickAxis.RIGHT_Y, y)
-            
+
     def set_stick_axis(self, axis: StickAxis, value: float):
         """(Sync) Set the state of a stick axis.
 
@@ -75,7 +76,7 @@ class ControllerAPI:
         # Convert float value to integer range (0 to 4095)
         int_value = int((value + 1.0) * 2047.5)
         self._transceiver.controller_state.set_stick(axis, int_value)
-        
+
     def set_stick_raw(self, axis: StickAxis, value: int):
         """(Sync) Set the state of a stick axis with raw integer value.
 
@@ -84,7 +85,7 @@ class ControllerAPI:
             value: The raw integer value to set the axis to (0 to 4095)
         """
         self._transceiver.controller_state.set_stick(axis, value)
-        
+
     def reset(self):
         """Reset the controller state."""
         self._transceiver.controller_state.reset()

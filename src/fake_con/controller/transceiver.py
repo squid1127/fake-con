@@ -67,6 +67,11 @@ class ControllerTransceiver:
         logger.info("Waiting for the first input report to be received...")
         empty_report_task = asyncio.create_task(self.send_empty_input())
         try:
+            await asyncio.wait_for(self._input_ready.wait(), timeout=5.0)
+        except TimeoutError:
+            logger.warning("Timeout waiting for initial handshake.")
+            self.controller_state.set_input_report_type(InputReportType.STANDARD_FULL)
+            await self.handle_get_trigger_times(bytes())
             await self._input_ready.wait()
         except asyncio.CancelledError:
             await self._cancel_task(empty_report_task)
@@ -214,7 +219,6 @@ class ControllerTransceiver:
     async def handle_set_input_report_mode(self, data: bytes):
         """Handle the SET_INPUT_REPORT_MODE subcommand."""
         report_mode = data[12]
-        logger.info(f"Got SET_INPUT_REPORT_MODE subcommand for type {report_mode}.")
         report_type = InputReportType(report_mode)
         self.controller_state.set_input_report_type(report_type)
 
@@ -232,7 +236,6 @@ class ControllerTransceiver:
     async def handle_get_device_info(self, data: bytes):
         """Handle the GET_DEVICE_INFO subcommand."""
         # This is a placeholder implementation. You should implement the actual logic to handle this subcommand.
-        logger.info("Got GET_DEVICE_INFO subcommand.")
         report = self.controller_state.as_bytes(
             input_report_type=InputReportType.REPLY_ONLY
         )
@@ -249,13 +252,12 @@ class ControllerTransceiver:
             self._address.replace(":", "")
         )  # Controller MAC address
         report[26] = 0x01  # Always 0x01
-        report[27] = 0x01  # Always 0x00
+        report[27] = 0x00  # Always 0x00
         await self._send_bytes(report)
         logger.debug("Sent device info report: \n%s", pretty_bytes(report))
 
     async def handle_set_shipment_state(self, data: bytes):
         """Handle the SET_SHIPMENT_STATE subcommand. Essentially ignores it."""
-        logger.info("Got SET_SHIPMENT_STATE subcommand.")
         report = self.controller_state.as_bytes(
             input_report_type=InputReportType.REPLY_ONLY
         )
@@ -268,7 +270,6 @@ class ControllerTransceiver:
 
     async def handle_get_spi_flash(self, data: bytes):
         """Handle a GET_SPI_FLASH request."""
-        logger.info("Got GET_SPI_FLASH subcommand.")
         if len(data) < 17:
             logger.warning("GET_SPI_FLASH request is too short: %d bytes", len(data))
             return
@@ -294,7 +295,6 @@ class ControllerTransceiver:
 
     async def handle_get_trigger_times(self, data: bytes):
         """Handle a GET_TRIGGER_TIMES request."""
-        logger.info("Got GET_TRIGGER_TIMES subcommand.")
         report = self.controller_state.as_bytes(
             input_report_type=InputReportType.REPLY_ONLY
         )
@@ -322,7 +322,7 @@ class ControllerTransceiver:
         report = bytearray(50)
         report[0] = 0xA1
         try:
-            for _ in range(4):
+            for _ in range(40):
                 await self._send_bytes(report)
             logger.debug("Sent empty input report.")
         except OSError:
@@ -343,6 +343,7 @@ class ControllerTransceiver:
         except OSError:
             logger.exception("Failed to send data")
             await self.stop()  # Stop the transceiver on send failure
+
 
     @property
     def is_stopped(self) -> bool:

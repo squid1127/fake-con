@@ -2,12 +2,13 @@
 
 
 import asyncio
+from functools import partial
 
 
 async def run_sync(func, *args, **kwargs):
     """Run a synchronous function in an executor."""
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, func, *args, **kwargs)
+    return await loop.run_in_executor(None, partial(func, *args, **kwargs))
 
 
 async def run_command(command: list[str]) -> str:

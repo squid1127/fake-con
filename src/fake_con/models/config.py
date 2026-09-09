@@ -33,7 +33,7 @@ class FakeConConfig(BaseModel):
         description="Whether to automatically reconnect to the controller if the connection is lost.",
     )
     reconnect_on_startup: bool = Field(
-        default=True,
+        default=False,
         description="Whether to attempt to reconnect to the controller on startup if a previous connection was established.",
     )
     set_device_class: bool = Field(

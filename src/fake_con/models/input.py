@@ -2,6 +2,7 @@
 
 from collections.abc import Mapping
 from enum import Enum
+from typing import Protocol
 
 
 class Button(Enum):
@@ -131,6 +132,13 @@ class OutputSubcommand(Enum):
     SET_SHIPMENT_STATE = 0x08
     GET_SPI_FLASH = 0x10
     ENABLE_IMU = 0x40
+    
+class OnTickCallback(Protocol):
+    """Protocol for on_tick callback functions."""
+
+    async def __call__(self) -> None:
+        """Method to be called on each tick."""
+        ...
 
 
 # * Mappings

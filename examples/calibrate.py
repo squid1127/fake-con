@@ -1,9 +1,9 @@
 """Test script"""
 
 import asyncio
+import random
 from logging import DEBUG, getLogger
 
-import random
 from coloredlogs import install
 
 import fake_con as fc
@@ -14,7 +14,7 @@ logger = getLogger(__name__)
 
 async def main():
     """Main function to run the test."""
-    config = fc.FakeConConfig(controller_type=fc.ControllerType.JOYCON_L)
+    config = fc.FakeConConfig()
     server = fc.FakeConServer(config=config)
 
     logger.info("Starting the fake-con server...")

@@ -23,10 +23,11 @@ logger = getLogger(__name__)
 
 class FakeConServer:
     """Server controller for the fake-con system.
-    
+
     This class manages the Bluetooth connection, pairing, and controller state.
-    
-    Also functions as an async context manager, allowing for easy startup and shutdown of the server."""
+
+    Also functions as an async context manager, allowing for easy startup and shutdown of the server.
+    """
 
     def __init__(self, config: FakeConConfig):
         """Initialize the server controller with the given configuration.
@@ -48,10 +49,14 @@ class FakeConServer:
     async def start(self):
         """Start the server controller."""
         logger.info("Starting the fake-con server...")
-        await self._dbus_interface.auto()
+        await self._dbus_interface.auto(False)
         await self.create_sockets()
         await self.set_device_class()
-        await self.pair()
+        if (not self._config.reconnect_on_startup) or not (
+            await self.try_connect_previously_paired()
+        ):
+            await self.create_sockets()
+            await self.pair()
 
         if self._pairing_agent is not None:
             self._pairing_agent.close()
@@ -133,17 +138,37 @@ class FakeConServer:
             self._accept_socket(self.control_socket),
             self._accept_socket(self.interrupt_socket),
         )
-        self.control_socket.close()
-        self.interrupt_socket.close()
-        self._control_socket = client_control
-        self._interrupt_socket = client_interrupt
-        self._control_socket.setblocking(False)
-        self._interrupt_socket.setblocking(False)
-        self._control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
-        self._interrupt_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
+        self._apply_sockets(client_control, client_interrupt)
 
         logger.info("Switch paired successfully.")
         await self._dbus_interface.stop_advertising()
+
+    async def try_connect_previously_paired(self):
+        """Try to connect to a previously paired switch."""
+        logger.info("Attempting to connect to a previously paired switch...")
+
+        switches = await self._dbus_interface.get_paired_devices()
+        if not switches:
+            logger.info("No previously paired switches found.")
+            return False
+
+        for switch in switches:
+            logger.info(f"Attempting to connect to switch: {switch}")
+            try:
+                await asyncio.gather(
+                    self._connect_socket(self.control_socket, switch, self._config.control_channel_psm),
+                    self._connect_socket(self.interrupt_socket, switch, self._config.interrupt_channel_psm),
+                )
+                self.control_socket.setblocking(False)
+                self.interrupt_socket.setblocking(False)
+                self.control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
+                self.interrupt_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)                
+            except OSError:
+                logger.exception(f"Failed to connect to switch {switch}")
+                continue
+            else:
+                logger.info(f"Successfully connected to switch: {switch}")
+                return True
 
     async def attach_transceiver(self):
         """Attach a controller transceiver to the paired switch."""
@@ -164,12 +189,32 @@ class FakeConServer:
         self._transceiver = transceiver
         await transceiver.start()
 
+    def _apply_sockets(self, control_socket: socket.socket, interrupt_socket: socket.socket):
+        """Update the server with new control and interrupt sockets."""
+        if self._control_socket is not None:
+            self._control_socket.close()
+        if self._interrupt_socket is not None:
+            self._interrupt_socket.close()
+        
+        self._control_socket = control_socket
+        self._interrupt_socket = interrupt_socket
+        self._control_socket.setblocking(False)
+        self._interrupt_socket.setblocking(False)
+        self._control_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
+        self._interrupt_socket.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 0)
+
     async def _accept_socket(self, sock: socket.socket) -> socket.socket:
         """Accept a connection on the given socket."""
         loop = asyncio.get_running_loop()
         conn, addr = await loop.sock_accept(sock)
         logger.info("Accepted connection from %s", addr)
         return conn
+    
+    async def _connect_socket(self, sock: socket.socket, address: str, psm: int):
+        """Connect to a remote socket."""
+        loop = asyncio.get_running_loop()
+        await loop.sock_connect(sock, (address, psm))
+        logger.info("Connected to %s on PSM %d", address, psm)
 
     async def __aenter__(self):
         """Enter the async context manager."""

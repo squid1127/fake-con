@@ -6,7 +6,7 @@ from logging import getLogger
 from uuid import uuid4
 
 from aiofiles import open as aio_open
-from dbus import Boolean, Bus, Interface, String, SystemBus
+from dbus import Bus, Interface, SystemBus
 from dbus.connection import ProxyObject
 
 from ..models.config import FakeConConfig
@@ -44,7 +44,7 @@ class DBusInterface:
         self._adapter: Interface | None = None
         self._properties: Interface | None = None
 
-    async def auto(self):
+    async def auto(self, unpair_existing: bool = True):
         """Automatically discover the adapter and set it up."""
         await self.discover_adapter()
         await self.set_powered(True)
@@ -52,15 +52,12 @@ class DBusInterface:
         await self.set_pairable(True)
         await self.set_alias(self._config.controller_type.device_name)
         await self.register_hid_profile()
-        
-        if await self.get_paired_devices():
-            logger.warning(
-                "There are already paired devices. Unpairing them..."
-            )
+
+        if unpair_existing and await self.get_paired_devices():
+            logger.warning("There are already paired devices. Unpairing them...")
             for device in await self.get_paired_devices():
                 await self.remove_device(device)
 
-        
     async def stop_advertising(self):
         """Stop advertising the controller."""
         await self.set_discoverable(False)
@@ -76,7 +73,9 @@ class DBusInterface:
         Raises:
             RuntimeError: If the adapter has not been discovered yet.
         """
-        return await run_sync(self.properties.Get, DBUS_INTERFACE_ADAPTER, "Address")
+        return await run_sync(
+            self.properties.Get, DBUS_INTERFACE_ADAPTER, "Address", signature="ss"
+        )
 
     async def get_paired_devices(self) -> list[str]:
         """Get the list of paired switches.
@@ -85,7 +84,8 @@ class DBusInterface:
             A list of paired switch addresses.
         """
         manager = Interface(
-            self._bus.get_object(DBUS_NAME, "/"), DBUS_INTERFACE_OBJECT_MANAGER
+            self._bus.get_object(DBUS_NAME, "/"),
+            DBUS_INTERFACE_OBJECT_MANAGER,
         )
         objects = await run_sync(manager.GetManagedObjects)
 
@@ -94,10 +94,10 @@ class DBusInterface:
             if DBUS_INTERFACE_DEVICE in interfaces:
                 device_interface = interfaces[DBUS_INTERFACE_DEVICE]
                 if device_interface.get("Name") == SWITCH_NAME:
-                    paired_devices.append(device_interface.get("Address"))
+                    paired_devices.append(str(device_interface.get("Address")))
 
         return paired_devices
-    
+
     async def remove_device(self, address: str):
         """Remove a paired device by its address.
 
@@ -113,7 +113,7 @@ class DBusInterface:
         for path, interfaces in objects.items():
             if DBUS_INTERFACE_DEVICE in interfaces:
                 device_interface = interfaces[DBUS_INTERFACE_DEVICE]
-                if device_interface.get("Address") == address:
+                if str(device_interface.get("Address")) == address:
                     device_path = path
                     break
 
@@ -158,7 +158,13 @@ class DBusInterface:
         Args:
             powered: True to power on the adapter, False to power it off.
         """
-        await run_sync(self.properties.Set, DBUS_INTERFACE_ADAPTER, "Powered", Boolean(powered))
+        await run_sync(
+            self.properties.Set,
+            DBUS_INTERFACE_ADAPTER,
+            "Powered",
+            powered,
+            signature="ssv",
+        )
         logger.info(f"Set adapter power state to {powered}")
 
     async def set_discoverable(self, discoverable: bool):
@@ -168,7 +174,11 @@ class DBusInterface:
             discoverable: True to make the adapter discoverable, False to make it non-discoverable.
         """
         await run_sync(
-            self.properties.Set, DBUS_INTERFACE_ADAPTER, "Discoverable", Boolean(discoverable)
+            self.properties.Set,
+            DBUS_INTERFACE_ADAPTER,
+            "Discoverable",
+            discoverable,
+            signature="ssv",
         )
         logger.info(f"Set adapter discoverable state to {discoverable}")
 
@@ -178,7 +188,9 @@ class DBusInterface:
         Args:
             alias: The new alias for the adapter.
         """
-        await run_sync(self.properties.Set, DBUS_INTERFACE_ADAPTER, "Alias", String(alias))
+        await run_sync(
+            self.properties.Set, DBUS_INTERFACE_ADAPTER, "Alias", alias, signature="ssv"
+        )
         logger.info(f"Set adapter alias to {alias}")
 
     async def set_pairable(self, pairable: bool):
@@ -188,7 +200,11 @@ class DBusInterface:
             pairable: True to make the adapter pairable, False to make it non-pairable.
         """
         await run_sync(
-            self.properties.Set, DBUS_INTERFACE_ADAPTER, "Pairable", Boolean(pairable)
+            self.properties.Set,
+            DBUS_INTERFACE_ADAPTER,
+            "Pairable",
+            pairable,
+            signature="ssv",
         )
         logger.info(f"Set adapter pairable state to {pairable}")
 
